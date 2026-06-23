@@ -65,7 +65,8 @@ Cоздала бд hw03, добавила в нее новую таблицу и
     Try \? for help.
     postgres=# \c hw03
     You are now connected to database "hw03" as user "postgres".
-    hw03=# create table shipments(id serial, product_name text, quantity int, destination text);
+    hw03=# 
+create table shipments(id serial, product_name text, quantity int, destination text);
     CREATE TABLE
     hw03=# insert into shipments(product_name, quantity, destination) values('bananas', 1000, 'Europe');
     insert into shipments(product_name, quantity, destination) values('bananas', 1500, 'Asia');
