@@ -1,0 +1,112 @@
+---
+- name: Install and configure PostgreSQL on Ubuntu 24.04
+  hosts: postgres
+  become: true
+  gather_facts: true
+
+  vars:
+    postgresql_version: "16"
+    postgresql_database: "otus"
+    postgresql_user: "otus"
+    postgresql_password: "oracledba"
+
+    postgresql_allowed_cidr: "0.0.0.0/0"
+
+    postgresql_conf_path: "/etc/postgresql/{{ postgresql_version }}/main/postgresql.conf"
+    postgresql_hba_path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+
+  pre_tasks:
+    - name: Wait for cloud-init to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  tasks:
+    - name: Install PostgreSQL and Python driver
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
+
+    - name: Ensure PostgreSQL listens on all IPv4 interfaces
+      ansible.builtin.lineinfile:
+        path: "{{ postgresql_conf_path }}"
+        regexp: '^[#\s]*listen_addresses\s*='
+        line: "listen_addresses = '*'"
+        backup: true
+      notify: Restart PostgreSQL
+
+    - name: Set password encryption to SCRAM
+      ansible.builtin.lineinfile:
+        path: "{{ postgresql_conf_path }}"
+        regexp: '^[#\s]*password_encryption\s*='
+        line: "password_encryption = 'scram-sha-256'"
+      notify: Restart PostgreSQL
+
+    - name: Allow remote access to the otus database for the otus user
+      community.postgresql.postgresql_pg_hba:
+        dest: "{{ postgresql_hba_path }}"
+        contype: host
+        databases: "{{ postgresql_database }}"
+        users: "{{ postgresql_user }}"
+        source: "{{ postgresql_allowed_cidr }}"
+        method: scram-sha-256
+        create: true
+      notify: Reload PostgreSQL
+
+    - name: Ensure PostgreSQL is running
+      become: true
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Create PostgreSQL user
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_user:
+        name: "{{ postgresql_user }}"
+        password: "{{ postgresql_password }}"
+        role_attr_flags: "LOGIN"
+        state: present
+
+    - name: Create PostgreSQL database
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_db:
+        name: "{{ postgresql_database }}"
+        owner: "{{ postgresql_user }}"
+        encoding: UTF8
+        template: template0
+        state: present
+
+    - name: Flush handlers before validation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Validate local database login
+      become_user: postgres
+      community.postgresql.postgresql_query:
+        db: "{{ postgresql_database }}"
+        query: "SELECT current_database() AS database_name, current_user AS user_name;"
+      register: postgres_validation
+
+    - name: Show validation result
+      ansible.builtin.debug:
+        var: postgres_validation.query_result
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
+
+    - name: Reload PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: reloaded
