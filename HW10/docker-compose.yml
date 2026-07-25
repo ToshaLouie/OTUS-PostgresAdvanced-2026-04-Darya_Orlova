@@ -1,0 +1,106 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: otus
+      POSTGRES_USER: otus
+      POSTGRES_PASSWORD: otuspass
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+      - ./data:/data:ro
+      - ./results:/results
+
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - wal_compression=on
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - checkpoint_timeout=30min
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - max_parallel_workers=4
+      - -c
+      - max_parallel_workers_per_gather=4
+      - -c
+      - jit=off
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U benchmark -d benchmark"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    restart: unless-stopped
+
+    environment:
+      CLICKHOUSE_DB: otus
+      CLICKHOUSE_USER: otuspass
+      CLICKHOUSE_PASSWORD: otuspass
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+      - ./clickhouse-init:/docker-entrypoint-initdb.d:ro
+      - ./data:/data:ro
+      - ./results:/results
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --user otus --password otuspass --query 'SELECT 1'"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  clickhouse_logs:
