@@ -1,0 +1,78 @@
+services:
+  cockroach1:
+    image: cockroachdb/cockroach:v25.4.10
+    container_name: cockroach1
+    hostname: cockroach1
+    command:
+      - start
+      - --insecure
+      - --advertise-addr=cockroach1:26257
+      - --listen-addr=0.0.0.0:26257
+      - --http-addr=0.0.0.0:8080
+      - --join=cockroach1:26257,cockroach2:26257,cockroach3:26257
+      - --locality=region=local,zone=zone-a
+      - --cache=25%
+      - --max-sql-memory=25%
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - cockroach1-data:/cockroach/cockroach-data
+    networks:
+      - cockroach-net
+    restart: unless-stopped
+
+  cockroach2:
+    image: cockroachdb/cockroach:v25.4.10
+    container_name: cockroach2
+    hostname: cockroach2
+    command:
+      - start
+      - --insecure
+      - --advertise-addr=cockroach2:26257
+      - --listen-addr=0.0.0.0:26257
+      - --http-addr=0.0.0.0:8080
+      - --join=cockroach1:26257,cockroach2:26257,cockroach3:26257
+      - --locality=region=local,zone=zone-b
+      - --cache=25%
+      - --max-sql-memory=25%
+    ports:
+      - "26258:26257"
+      - "8081:8080"
+    volumes:
+      - cockroach2-data:/cockroach/cockroach-data
+    networks:
+      - cockroach-net
+    restart: unless-stopped
+
+  cockroach3:
+    image: cockroachdb/cockroach:v25.4.10
+    container_name: cockroach3
+    hostname: cockroach3
+    command:
+      - start
+      - --insecure
+      - --advertise-addr=cockroach3:26257
+      - --listen-addr=0.0.0.0:26257
+      - --http-addr=0.0.0.0:8080
+      - --join=cockroach1:26257,cockroach2:26257,cockroach3:26257
+      - --locality=region=local,zone=zone-c
+      - --cache=25%
+      - --max-sql-memory=25%
+    ports:
+      - "26259:26257"
+      - "8082:8080"
+    volumes:
+      - cockroach3-data:/cockroach/cockroach-data
+    networks:
+      - cockroach-net
+    restart: unless-stopped
+
+networks:
+  cockroach-net:
+    driver: bridge
+
+volumes:
+  cockroach1-data:
+  cockroach2-data:
+  cockroach3-data:
