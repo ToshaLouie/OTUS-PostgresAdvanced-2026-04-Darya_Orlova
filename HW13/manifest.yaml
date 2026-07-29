@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: greenplum
+  namespace: greenplumotus
+spec:
+  serviceName: greenplum
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: greenplum
+
+  template:
+    metadata:
+      labels:
+        app: greenplum
+
+    spec:
+      terminationGracePeriodSeconds: 30
+
+      containers:
+        - name: greenplum
+          image: lyasper/greenplum:6
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: postgres
+              containerPort: 5432
+
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "8Gi"
+
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 6
+
+          volumeMounts:
+            - name: import-data
+              mountPath: /data
+
+      volumes:
+        - name: import-data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: greenplum
+  namespace: greenplumotus
+spec:
+  selector:
+    app: greenplum
+
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+  type: ClusterIP
