@@ -1,0 +1,34 @@
+- name: Install node_exporter
+  hosts: postgres:etcd:haproxy:prometheus:grafana:alertmanager
+  become: true
+  gather_facts: true
+  roles:
+    - node_exporter
+
+- name: Install postgres_exporter
+  hosts: postgres
+  become: true
+  gather_facts: true
+  roles:
+    - postgres_exporter
+
+- name: Install Alertmanager
+  hosts: alertmanager
+  become: true
+  gather_facts: true
+  roles:
+    - alertmanager
+
+- name: Install Prometheus
+  hosts: prometheus
+  become: true
+  gather_facts: true
+  roles:
+    - prometheus
+
+- name: Install Grafana
+  hosts: grafana
+  become: true
+  gather_facts: true
+  roles:
+    - grafana

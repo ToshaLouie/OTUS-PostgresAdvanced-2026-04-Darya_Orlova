@@ -1,0 +1,27 @@
+- name: Recover HAProxy
+  hosts: "{{ recovery_host }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Restart HAProxy
+      ansible.builtin.systemd:
+        name: haproxy
+        state: restarted
+        enabled: true
+
+    - name: Wait for HAProxy metrics port
+      ansible.builtin.wait_for:
+        port: 8404
+        timeout: 30
+
+    - name: Check HAProxy service
+      ansible.builtin.command:
+        cmd: systemctl is-active haproxy
+      register: haproxy_status
+      changed_when: false
+
+    - name: Fail if HAProxy is not active
+      ansible.builtin.fail:
+        msg: "HAProxy recovery failed"
+      when: haproxy_status.stdout != "active"

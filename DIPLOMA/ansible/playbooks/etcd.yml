@@ -1,0 +1,24 @@
+- name: Install etcd cluster
+  hosts: etcd
+  become: true
+  gather_facts: true
+  roles:
+    - etcd
+
+- name: Verify etcd cluster
+  hosts: etcd-01
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check etcd health
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/etcdctl
+          - --endpoints=http://10.10.10.21:2379,http://10.10.20.21:2379,http://10.10.30.21:2379
+          - endpoint
+          - health
+      register: etcd_health
+      changed_when: false
+
+    - ansible.builtin.debug:
+        var: etcd_health.stdout_lines

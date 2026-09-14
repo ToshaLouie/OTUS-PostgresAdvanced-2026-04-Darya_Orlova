@@ -1,0 +1,6 @@
+- name: Install HAProxy
+  hosts: haproxy
+  become: true
+  gather_facts: true
+  roles:
+    - haproxy

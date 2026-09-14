@@ -1,0 +1,37 @@
+- name: Recover etcd node
+  hosts: "{{ recovery_host }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check etcd service
+      ansible.builtin.command:
+        cmd: systemctl is-active etcd
+      register: etcd_status
+      changed_when: false
+      failed_when: false
+
+    - name: Restart etcd if inactive
+      ansible.builtin.systemd:
+        name: etcd
+        state: restarted
+        enabled: true
+      when: etcd_status.stdout != "active"
+
+    - name: Wait for etcd client port
+      ansible.builtin.wait_for:
+        port: 2379
+        timeout: 30
+
+    - name: Check etcd endpoint health
+      ansible.builtin.command:
+        cmd: >
+          etcdctl
+          --endpoints=http://127.0.0.1:2379
+          endpoint health
+      register: etcd_health
+      changed_when: false
+
+    - name: Show etcd health
+      ansible.builtin.debug:
+        var: etcd_health.stdout

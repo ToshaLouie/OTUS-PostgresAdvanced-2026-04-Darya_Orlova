@@ -1,0 +1,16 @@
+- name: Recover node_exporter
+  hosts: "{{ recovery_host }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Start node_exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        state: started
+        enabled: true
+
+    - name: Wait for node_exporter port
+      ansible.builtin.wait_for:
+        port: 9100
+        timeout: 30

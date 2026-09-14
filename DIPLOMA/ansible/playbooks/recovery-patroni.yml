@@ -1,0 +1,42 @@
+- name: Recover Patroni
+  hosts: "{{ recovery_host }}"
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check Patroni API
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8008/patroni"
+        method: GET
+        return_content: true
+      register: patroni_api
+      failed_when: false
+
+    - name: Show current Patroni state
+      ansible.builtin.debug:
+        var: patroni_api.json
+
+    - name: Refuse automatic restart of current leader
+      ansible.builtin.fail:
+        msg: "Host is Patroni leader. Automatic restart is blocked for safety."
+      when:
+        - patroni_api.status == 200
+        - patroni_api.json.role | default("") == "leader"
+
+    - name: Restart Patroni on replica
+      ansible.builtin.systemd:
+        name: patroni
+        state: restarted
+      when:
+        - patroni_api.status != 200 or
+          patroni_api.json.role | default("") != "leader"
+
+    - name: Wait for Patroni API
+      ansible.builtin.wait_for:
+        port: 8008
+        timeout: 60
+
+    - name: Wait for PostgreSQL
+      ansible.builtin.wait_for:
+        port: 5432
+        timeout: 60
